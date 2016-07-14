@@ -1,0 +1,282 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ output extension=".cs" #>
+<#@ assembly name="System.Data" #>
+<#@ assembly name="System.Xml" #>
+<#@ import namespace="System" #>
+<#@ import namespace="System.Xml" #>
+<#@ import namespace="System.Data" #>
+<#@ import namespace="System.Data.SqlClient" #>
+<# 
+ModelManager manager = new ModelManager();
+string tableName = "Loan";
+//是否生成长度检查类
+bool isCheck = false;
+string myClassName = "MyClassName";
+string dbConnection = "Data Source=192.168.1.201,7201;Initial Catalog=FundUse;Persist Security Info=True;User ID=sa;Password=8866aass#*PP";
+DataTable table= manager.GetTableSchema(tableName,dbConnection);
+#>
+/* ****************************************************************************************
+ * 创建日期：<#=DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")#> 
+ * 由工具生成
+ * ****************************************************************************************/
+using System;
+using System.Text;
+
+namespace <#= myClassName #>
+{
+    [Serializable]
+    /// <summary>
+    /// <#= tableName #>
+    /// </summary>
+    public class <#= tableName #>
+    {
+        #region 属性
+    <#
+    foreach(DataRow row in table.Rows)
+    {
+    #>
+    /// <summary>
+        /// <#= "获取或设置" + row["Description"]#>
+        /// </summary>
+        public <#= manager.TransFromSqlType(row["DataType"].ToString(),row["IsNullable"].ToString())#>  <#=row["ColumnName"]#>{ get; set; }
+    <#}
+    #>
+    #endregion
+    }
+
+	<# if(isCheck){ #>	
+	/// <summary>
+    /// <#= tableName + "字段长度检查" #>
+    /// </summary>
+	public static class <#= tableName + "Check" #>
+	{
+		/// <summary>
+        /// 计算string转换为GBK后的数据长度
+        /// </summary>
+        /// <param name="Text"></param>
+        /// <returns></returns>
+		public static int Text_Length(string Text)
+        {
+            int len = 0;
+
+            for (int i = 0; i < Text.Length; i++)
+            {
+                byte[] byte_len = Encoding.GetEncoding("GBK").GetBytes(Text.Substring(i, 1));
+                if (byte_len.Length > 1)
+                    len += 2;  //如果长度大于1，是中文，占两个字节，+2
+                else
+                    len += 1;  //如果长度等于1，是英文，占一个字节，+1
+            }
+
+            return len;
+        }
+
+
+
+	<# 
+	foreach(DataRow row in table.Rows)
+	{
+	 string rowType = manager.TransFromSqlType(row["DataType"].ToString(),row["IsNullable"].ToString());
+	 if(rowType == "string" || rowType == "int" || rowType == "int?")
+     {
+	  #>
+	/// <summary>
+		/// <#= "根据数据库检查[" + row["ColumnName"] + "]字段 " + row["Description"] #>
+		/// </summary>	
+		public static bool <#= "Check_" + row["ColumnName"]  #>(<#= rowType #> <#=row["ColumnName"]  #>)
+		{
+			<# if(rowType == "string") 
+			{
+			#>return Text_Length(<#=row["ColumnName"]  #>) <=  <#=row["ColumnLength"]  #>  ? true : false;
+			<#
+			}else{ #>return <#=row["ColumnName"]  #>.ToString().Length <= <#=row["ColumnLength"]  #> ? true : false;
+			<# } #>
+
+		}
+
+	  <# }} #>	 
+
+} <# } #>
+}
+
+<#+
+    public class ModelManager
+    {
+
+		public string MMM()
+        {
+			return "Text_Length()";
+		}
+
+        /// <summary>
+        /// 数据库连接字符串
+        /// </summary>
+        //private const string CONNECTION_STRING="Data Source=.;Initial Catalog=192.168.1.201,7201;User ID=sa;pwd=000000";
+		private const string CONNECTION_STRING="Data Source=192.168.1.201,7201;Initial Catalog=FundUse;Persist Security Info=True;User ID=sa;Password=8866aass#*PP";
+        /// <summary>
+        /// 用户信息表名
+        /// </summary>
+        private const string PERSONINFO_TABLE_NAME = "Contract";
+        /// <summary>
+        /// 根据表名查询表结构信息
+        /// SQL Server 2005写法
+        /// </summary>
+        private const string SELECT_SCHEMA_BY_TABLE_NAME_2005 = @"SELECT
+                                                            d.name AS TableName,
+                                                            a.colorder AS ColumnID,
+                                                            a.name AS ColumnName,
+                                                            b.name AS DataType,
+                                                            g.[value] AS Description,
+															a.length AS ColumnLength,
+                                                            CASE WHEN a.isnullable = 0 THEN 'false'
+                                                                ELSE 'true'
+                                                            END AS IsNullable
+                                                            FROM syscolumns a left join systypes b
+                                                            on a.xtype=b.xusertype
+                                                            inner join sysobjects d
+                                                            on a.id=d.id and d.xtype='U' and d.name<>'dtproperties'
+                                                            left join sys.extended_properties g
+                                                            on a.id=g.major_id AND a.colid = g.minor_id
+                                                            WHERE d.[name] ='{0}'
+                                                            order by a.id,a.colorder";
+
+
+        /// <summary>
+        /// 根据表名查询表结构信息
+        /// SQL Server 2000写法
+        /// </summary>
+        private const string SELECT_SCHEMA_BY_TABLE_NAME_2000 = @"SELECT (
+                                                            case when a.colorder=1 then d.name else '' end) N'表名',
+                                                            a.colorder N'字段序号',a.name N'ColumnName',
+                                                            (case when COLUMNPROPERTY( a.id,a.name,'IsIdentity')=1 then '√'else '' end) N'标识',
+                                                            (case when (SELECT count(*) FROM sysobjects
+                                                            WHERE (name in (SELECT name FROM sysindexes
+                                                            WHERE (id = a.id) AND (indid in
+                                                            (SELECT indid FROM sysindexkeys
+                                                            WHERE (id = a.id) AND (colid in
+                                                            (SELECT colid FROM syscolumns
+                                                            WHERE (id = a.id) AND (name = a.name))))))) AND
+                                                            (xtype = 'PK'))>0 then '√' else '' end) N'主键',b.name N'DataType',a.length N'占用字节数',
+                                                            COLUMNPROPERTY(a.id,a.name,'PRECISION') as N'长度',isnull(COLUMNPROPERTY(a.id,a.name,'Scale'),0) as N'小数位数',
+                                                            (case when a.isnullable=1 then '√'else '' end) N'IsNullable',
+                                                            isnull(e.text,'') N'默认值',isnull(g.[value],'') AS N'Description'
+                                                            --into ##tx
+                                                            FROM syscolumns a left join systypes b on a.xtype=b.xusertype
+                                                            inner join sysobjects d on a.id=d.id and d.xtype='U' and d.name<>'dtproperties'
+                                                            left join syscomments e on a.cdefault=e.id
+                                                            left join sysproperties g on a.id=g.id AND a.colid = g.smallid
+                                                            where d.name='{0}'
+                                                            order by object_name(a.id),a.colorder";
+
+        /// <summary>
+        /// 获得数据连接
+        /// </summary>
+        /// <returns></returns>
+        private SqlConnection GetConnection()
+        {
+            return new SqlConnection(CONNECTION_STRING);
+        }
+        /// <summary>
+        /// 释放连接
+        /// </summary>
+        /// <param name="con"></param>
+        private void ReleaseConnection(SqlConnection con)
+        {
+            if (con != null)
+            {
+                if (con.State == ConnectionState.Open)
+                {
+                    con.Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 查询相关表信息
+        /// </summary>
+        /// <param name="tableName"></param>
+        public DataTable GetTableSchema(string tableName ,string DBConnection = CONNECTION_STRING)
+        {
+            DataTable dt;
+            using (SqlConnection con = GetConnection())
+            {
+                con.Open();
+
+                SqlCommand cmd = con.CreateCommand();
+                cmd.CommandText = string.Format(SELECT_SCHEMA_BY_TABLE_NAME_2005,tableName);
+                cmd.CommandType = CommandType.Text;
+
+                SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                DataSet ds = new DataSet(); 
+                adapter.Fill(ds);
+                dt = ds.Tables[0];
+            }
+
+            return dt;
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        public void Generate()
+        {
+            DataTable table = GetTableSchema(PERSONINFO_TABLE_NAME);
+
+            if (table != null && table.Rows.Count > 0)
+            {
+                foreach (DataRow row in table.Rows)
+                {
+                    Console.WriteLine("public class {0}", row["TableName"]);
+                    Console.WriteLine("public {0} {1}", TransFromSqlType(row["DataType"].ToString(),row["IsNullable"].ToString()), row["ColumnName"]);
+                }
+            }
+        }
+        /// <summary>
+        /// SQL类型转换
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public string TransFromSqlType(string type,string isNull)
+        {
+             string typeStr = "";
+            string result = "";
+            switch (type)        //数据库的数据类型转换为对应的C#的数据类型，不是很完整
+            {
+                case "datetime":
+                case "smalldatetime":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "DateTime" + typeStr;
+                    break;
+                case "int":
+                case "smallint":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "int" + typeStr;
+                    break;
+                case "bit":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "bool" + typeStr;
+                    break;
+                case "float":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "double" + typeStr;
+                    break;
+                case "decimal":
+                case "money":
+                case "smallmoney":
+                case "numeric":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "decimal" + typeStr;
+                    break;
+                case "uniqueidentifier":
+                    typeStr = isNull == "true" ? "?" : "";
+                    result = "Guid" + typeStr;
+                    break;
+                default:
+                    result = "string" + typeStr;
+                    break;
+            }
+
+            return result;
+        }
+    }
+#>
+

@@ -1,0 +1,54 @@
+﻿<#@ IntelliSenseLanguage processor="tangibleT4Editor" language="C#" #>
+<#+ 
+	public List<PropList> getData(){
+		List<PropList> data = new List<PropList>();
+		data.Add(new PropList() { Name = "ID", PropType = "Guid", Describe = "" });
+		data.Add(new PropList() { Name = "SRGID", PropType = "Guid", Describe = "代偿ID"});
+		data.Add(new PropList() { Name = "LoseDate", PropType = "DateTime", Describe = "损失日期", ISCheck = true });
+		data.Add(new PropList() { Name = "LoseAmount", PropType = "string", Describe = "损失金额", ISCheck = true ,IsLenght = 20});
+		data.Add(new PropList() { Name = "UPD", PropType = "DateTime", Describe = "" });
+		data.Add(new PropList() { Name = "Status", PropType = "int", Describe = "" });
+		return data;
+		
+	}	
+
+
+  	/// <summary>
+    /// 属性
+    /// </summary>
+	public class PropList
+	{
+		public PropList()
+        {
+			ISNullable = false;
+			ISCheck = false;
+		}
+		/// <summary>
+        /// 属性名称
+        /// </summary>
+		public string Name { get; set; }
+		/// <summary>
+        /// 属性类型
+        /// </summary>
+        public string PropType { get; set; }
+		/// <summary>
+        /// 属性描述
+        /// </summary>
+        public string Describe { get; set; }
+		/// <summary>
+        /// 是否可为空（默认false）
+        /// </summary>
+		public bool ISNullable { get; set; }
+		/// <summary>
+        /// 是否检查（默认False）
+        /// </summary>
+		public bool ISCheck { get; set; }
+		/// <summary>
+        /// 属性长度(默认0)
+        /// </summary>
+		public int IsLenght { get; set; }
+
+	}
+
+	
+#>
